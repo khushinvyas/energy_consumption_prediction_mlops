@@ -1,0 +1,43 @@
+# Base project parameters
+base:
+  project_name: "energy_consumption_prediction"
+  random_state: 42
+
+# Data parameters
+data:
+  # The data is now fetched directly from the UCI repository in the script.
+  # We only need to define the paths for processed data.
+  processed_data_dir: "data/processed"
+  cleaned_file: "cleaned_data.csv"
+  train_file: "train.csv"
+  test_file: "test.csv"
+
+# Preprocessing parameters
+preprocessing:
+  separator: ";" # This is no longer used but kept for reference
+  missing_value_char: "?" # This is no longer used but kept for reference
+  target_col: "Global_active_power"
+
+# Data split parameters
+data_split:
+  test_split_ratio: 0.2
+
+# Feature engineering parameters
+featurization:
+  features_to_use:
+    - "Global_reactive_power"
+    - "Voltage"
+    - "Global_intensity"
+    - "Sub_metering_1"
+    - "Sub_metering_2"
+    - "Sub_metering_3"
+
+# Model parameters (XGBoost)
+model:
+  model_name: "XGBoostRegressor"
+  n_estimators: 100
+  max_depth: 6
+  learning_rate: 0.1
+  min_child_weight: 1
+  subsample: 0.8
+  colsample_bytree: 0.8

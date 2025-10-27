@@ -1,0 +1,65 @@
+stages:
+  # Data preprocessing stage
+  preprocess:
+    cmd: python src/data_preprocessing.py
+    deps:
+      # The dependency on the local raw file is removed.
+      # The script itself is the main dependency now.
+      - src/data_preprocessing.py
+    params:
+      - base
+      - data
+      - preprocessing
+    outs:
+      - data/processed/cleaned_data.csv
+
+  # Data split stage
+  split:
+    cmd: python src/data_split.py
+    deps:
+      - data/processed/cleaned_data.csv
+      - src/data_split.py
+    params:
+      - base
+      - data
+      - data_split
+      - featurization
+      - preprocessing
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+
+  # Model training stage
+  train_model:
+    cmd: python src/train.py
+    deps:
+      - data/processed/train.csv
+      - src/train.py
+    params:
+      - base
+      - data
+      - featurization
+      - preprocessing
+      - model.n_estimators
+      - model.max_depth
+      - model.learning_rate
+      - model.min_child_weight
+      - model.subsample
+      - model.colsample_bytree
+    outs:
+      - models/model.joblib
+
+  # Model evaluation stage
+  evaluate_model:
+    cmd: python src/evaluate.py
+    deps:
+      - data/processed/test.csv
+      - models/model.joblib
+      - src/evaluate.py
+    params:
+      - base
+      - data
+      - featurization
+      - preprocessing
+    metrics:
+      - reports/metrics.json
