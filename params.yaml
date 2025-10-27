@@ -1,22 +1,24 @@
 # Base project parameters
 base:
-  project_name: energy_consumption_prediction
+  project_name: "energy_consumption_prediction"
   random_state: 42
 
 # Data parameters
 data:
-  # The data is now fetched directly from the UCI repository in the script.
-  # We only need to define the paths for processed data.
-  processed_data_dir: data/processed
-  cleaned_file: cleaned_data.csv
-  train_file: train.csv
-  test_file: test.csv
+  # --- UPDATED: Define the path to the local raw data file ---
+  raw_data_dir: "data/raw"
+  raw_data_file: "household_power_consumption.txt"
+  processed_data_dir: "data/processed"
+  cleaned_file: "cleaned_data.csv"
+  train_file: "train.csv"
+  test_file: "test.csv"
 
 # Preprocessing parameters
 preprocessing:
-  separator: ;   # This is no longer used but kept for reference
-  missing_value_char: '?' # This is no longer used but kept for reference
-  target_col: Global_active_power
+  # --- UPDATED: This is now used again ---
+  separator: ";"
+  missing_value_char: "?" # This is no longer used but kept for reference
+  target_col: "Global_active_power"
 
 # Data split parameters
 data_split:
@@ -25,17 +27,34 @@ data_split:
 # Feature engineering parameters
 featurization:
   features_to_use:
-  - Global_reactive_power
-  - Voltage
-  - Global_intensity
-  - Sub_metering_1
-  - Sub_metering_2
-  - Sub_metering_3
+    - "Global_reactive_power"
+    - "Voltage"
+    - "Global_intensity"
+    - "Sub_metering_1"
+    - "Sub_metering_2"
+    - "Sub_metering_3"
+
+# Model parameters (XGBoost)
 model:
-  model_name: XGBoostRegressor
-  n_estimators: 200
-  max_depth: 8
-  learning_rate: 0.05
+  model_name: "XGBoostRegressor"
+  n_estimators: 100
+  max_depth: 6
+  learning_rate: 0.1
   min_child_weight: 1
   subsample: 0.8
   colsample_bytree: 0.8
+
+# --- Advanced Hyperparameter Tuning Configuration ---
+tuning:
+  cv_folds: 5
+  n_iter: 100
+  param_distributions:
+    model.n_estimators: [100, 200, 300, 400, 500]
+    model.max_depth: [4, 6, 8, 10, 12]
+    model.learning_rate: [0.01, 0.05, 0.1, 0.2, 0.3]
+    model.min_child_weight: [1, 5, 10]
+    model.subsample: [0.6, 0.7, 0.8, 0.9, 1.0]
+    model.colsample_bytree: [0.6, 0.7, 0.8, 0.9, 1.0]
+    model.reg_alpha: [0, 0.01, 0.1, 1]
+    model.reg_lambda: [1, 1.5, 2, 3, 4]
+    model.gamma: [0, 0.1, 0.2, 0.3, 0.4]

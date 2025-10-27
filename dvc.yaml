@@ -3,8 +3,8 @@ stages:
   preprocess:
     cmd: python src/data_preprocessing.py
     deps:
-      # The dependency on the local raw file is removed.
-      # The script itself is the main dependency now.
+      # --- UPDATED: Add the local raw data file as a dependency ---
+      - data/raw/household_power_consumption.txt
       - src/data_preprocessing.py
     params:
       - base
@@ -40,12 +40,8 @@ stages:
       - data
       - featurization
       - preprocessing
-      - model.n_estimators
-      - model.max_depth
-      - model.learning_rate
-      - model.min_child_weight
-      - model.subsample
-      - model.colsample_bytree
+      - model
+      - tuning
     outs:
       - models/model.joblib
 

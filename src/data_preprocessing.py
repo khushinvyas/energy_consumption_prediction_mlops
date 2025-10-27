@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import yaml
-from ucimlrepo import fetch_ucirepo
 import sys # Import sys to exit gracefully on error
 
 def load_params():
@@ -19,43 +18,45 @@ def main():
         params = load_params()
         
         # Define paths from params
+        raw_data_path = os.path.join(params["data"]["raw_data_dir"], params["data"]["raw_data_file"])
         processed_dir = params["data"]["processed_data_dir"]
         cleaned_file_path = os.path.join(processed_dir, params["data"]["cleaned_file"])
         
         # Create processed directory if it doesn't exist
         os.makedirs(processed_dir, exist_ok=True)
 
-        # --- Download and load the dataset from UCI repository ---
-        print("Fetching dataset from UCI ML Repository...")
-        individual_household_electric_power_consumption = fetch_ucirepo(id=235) 
-        X = individual_household_electric_power_consumption.data.features 
-        y = individual_household_electric_power_consumption.data.targets 
+        # --- Load the dataset from the local raw file ---
+        print(f"Loading data from local file: {raw_data_path}")
         
-        # Combine features and targets into a single DataFrame
-        df = pd.concat([X, y], axis=1)
-        print("Dataset fetched and combined successfully.")
+        # --- VALIDATION: Check if the raw data file exists ---
+        if not os.path.exists(raw_data_path):
+            print(f"ERROR: Raw data file not found at '{raw_data_path}'.")
+            print("Please make sure you have downloaded the file and placed it in the correct directory.")
+            sys.exit(1)
+            
+        # The data is semi-colon separated
+        df = pd.read_csv(
+            raw_data_path,
+            sep=params["preprocessing"]["separator"],
+            low_memory=False
+        )
+        print("Dataset loaded successfully.")
         
-        # --- VALIDATION: Check if expected columns are present ---
-        # This is a critical check to prevent downstream errors.
-        expected_cols = [
+        # --- The rest of the preprocessing logic remains the same ---
+        
+        # Handle missing values marked as '?' by replacing with NaN
+        print("Handling missing values...")
+        numeric_cols = [
             "Global_active_power", "Global_reactive_power", "Voltage", 
             "Global_intensity", "Sub_metering_1", "Sub_metering_2", "Sub_metering_3"
         ]
-        if not all(col in df.columns for col in expected_cols):
-            missing_cols = [col for col in expected_cols if col not in df.columns]
-            print(f"ERROR: The fetched dataset is missing expected columns: {missing_cols}")
-            print(f"Available columns are: {df.columns.tolist()}")
-            sys.exit(1)
-        print("All expected columns are present.")
-
-        # Handle missing values marked as '?' by replacing with NaN
-        print("Handling missing values...")
-        for col in expected_cols:
+        
+        for col in numeric_cols:
             df[col] = df[col].replace("?", float("nan"))
         
         # Convert to numeric types
         print("Converting columns to numeric types...")
-        for col in expected_cols:
+        for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors="coerce")
         
         # Drop rows with missing values

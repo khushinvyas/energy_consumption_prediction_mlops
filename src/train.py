@@ -3,6 +3,8 @@ import pandas as pd
 import joblib
 import yaml
 from xgboost import XGBRegressor
+# CHANGE: Import RandomizedSearchCV instead of GridSearchCV
+from sklearn.model_selection import RandomizedSearchCV 
 import sys
 
 def load_params():
@@ -26,7 +28,6 @@ def main():
         # --- VALIDATION: Check if training data exists ---
         if not os.path.exists(train_file_path):
             print(f"ERROR: Training data file not found at '{train_file_path}'.")
-            print("Please run the data split step first.")
             sys.exit(1)
 
         # Load the training data
@@ -36,42 +37,66 @@ def main():
         # Define features and target
         features = params["featurization"]["features_to_use"]
         target = params["preprocessing"]["target_col"]
-        required_cols = features + [target]
-
-        # --- VALIDATION: Check for required columns ---
-        if not all(col in train_df.columns for col in required_cols):
-            missing_cols = [col for col in required_cols if col not in train_df.columns]
-            print(f"ERROR: Training data is missing required columns: {missing_cols}")
-            sys.exit(1)
-
+        
         X_train = train_df[features]
         y_train = train_df[target]
         
-        # Get model hyperparameters
-        model_params = params["model"]
-        print(f"Training model with hyperparameters: {model_params}")
+        # --- RIGOROUS TRAINING WITH RANDOMIZED SEARCH AND CROSS-VALIDATION ---
         
-        # Initialize and train the XGBoost model
-        model = XGBRegressor(
-            n_estimators=model_params["n_estimators"],
-            max_depth=model_params["max_depth"],
-            learning_rate=model_params["learning_rate"],
-            min_child_weight=model_params["min_child_weight"],
-            subsample=model_params["subsample"],
-            colsample_bytree=model_params["colsample_bytree"],
-            random_state=params["base"]["random_state"]
+        # 1. Get the base model and tuning parameters from params.yaml
+        base_model_params = params["model"]
+        tuning_params = params["tuning"]
+        param_distributions = tuning_params["param_distributions"]
+        cv_folds = tuning_params["cv_folds"]
+        n_iter = tuning_params["n_iter"]
+        
+        print(f"Starting advanced training with {cv_folds}-fold cross-validation...")
+        print(f"Will test {n_iter} random parameter combinations.")
+        print(f"Parameter distributions to sample from: {param_distributions}")
+        
+        # 2. Initialize the base XGBoost model
+        base_model = XGBRegressor(
+            # Use a reasonable default for parameters not being tuned
+            n_estimators=base_model_params["n_estimators"],
+            max_depth=base_model_params["max_depth"],
+            learning_rate=base_model_params["learning_rate"],
+            min_child_weight=base_model_params["min_child_weight"],
+            subsample=base_model_params["subsample"],
+            colsample_bytree=base_model_params["colsample_bytree"],
+            random_state=params["base"]["random_state"],
+            n_jobs=-1 
         )
         
-        model.fit(X_train, y_train)
+        # 3. Set up RandomizedSearchCV
+        # This will test n_iter random combinations from param_distributions.
+        random_search = RandomizedSearchCV(
+            estimator=base_model,
+            param_distributions=param_distributions,
+            n_iter=n_iter,  # Number of parameter settings sampled
+            cv=cv_folds,    # Number of cross-validation folds
+            scoring='neg_root_mean_squared_error', # Metric to optimize
+            verbose=2,      # Show progress
+            random_state=params["base"]["random_state"], # For reproducibility
+            n_jobs=-1       # Use all available CPU cores
+        )
         
-        # Create model directory if it doesn't exist
+        # 4. Run the randomized search on the training data
+        print("Running RandomizedSearchCV... This will take some time.")
+        random_search.fit(X_train, y_train)
+        
+        # 5. Print the results
+        print("\n--- Randomized Search Complete ---")
+        print(f"Best parameters found: {random_search.best_params_}")
+        print(f"Best cross-validated RMSE: {-random_search.best_score_:.4f}")
+        
+        # 6. Save the best model
+        # RandomizedSearchCV automatically refits a model on the entire training set
+        # using the best parameters it found.
         os.makedirs(model_dir, exist_ok=True)
+        print(f"Saving best model to {model_path}")
+        joblib.dump(random_search.best_estimator_, model_path)
         
-        # Save the trained model
-        print(f"Saving trained model to {model_path}")
-        joblib.dump(model, model_path)
-        
-        print("Model training completed successfully.")
+        print("Advanced model training completed successfully.")
 
     except Exception as e:
         print(f"An unexpected error occurred during model training: {e}")

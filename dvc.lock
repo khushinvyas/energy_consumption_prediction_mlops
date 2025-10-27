@@ -18,8 +18,6 @@ stages:
           train_file: train.csv
           test_file: test.csv
         preprocessing:
-          separator: ;
-          missing_value_char: '?'
           target_col: Global_active_power
     outs:
     - path: data/processed/cleaned_data.csv
@@ -58,8 +56,6 @@ stages:
           - Sub_metering_2
           - Sub_metering_3
         preprocessing:
-          separator: ;
-          missing_value_char: '?'
           target_col: Global_active_power
     outs:
     - path: data/processed/test.csv

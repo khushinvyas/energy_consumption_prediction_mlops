@@ -63,42 +63,56 @@
             border-radius: 4px;
             border-left: 5px solid #f44336;
         }
+        .note {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Household Energy Consumption Prediction</h1>
-        <p>Enter the following values to predict Global Active Power (kW):</p>
+        
+        <!-- A helpful note for the user -->
+        <p class="note">
+            <strong>Note:</strong> Please enter decimal values using a period (.) as the decimal separator (e.g., 0.5).
+        </p>
         
         <form action="/predict" method="post">
             <div class="form-group">
                 <label for="Global_reactive_power">Global Reactive Power (kW):</label>
-                <input type="number" id="Global_reactive_power" name="Global_reactive_power" step="any" required>
+                <!-- 
+                  CHANGE 1: Added a placeholder to show an example format.
+                  CHANGE 2: Changed step="any" to step="0.01" to be more explicit about allowing decimals.
+                -->
+                <input type="number" id="Global_reactive_power" name="Global_reactive_power" step="0.01" placeholder="e.g., 0.25" required>
             </div>
             
             <div class="form-group">
                 <label for="Voltage">Voltage (V):</label>
-                <input type="number" id="Voltage" name="Voltage" step="any" required>
+                <input type="number" id="Voltage" name="Voltage" step="0.01" placeholder="e.g., 235.50" required>
             </div>
             
             <div class="form-group">
                 <label for="Global_intensity">Global Intensity (A):</label>
-                <input type="number" id="Global_intensity" name="Global_intensity" step="any" required>
+                <input type="number" id="Global_intensity" name="Global_intensity" step="0.01" placeholder="e.g., 18.4" required>
             </div>
             
             <div class="form-group">
                 <label for="Sub_metering_1">Sub-metering 1 (Wh):</label>
-                <input type="number" id="Sub_metering_1" name="Sub_metering_1" step="any" required>
+                <input type="number" id="Sub_metering_1" name="Sub_metering_1" step="0.01" placeholder="e.g., 1.0" required>
             </div>
             
             <div class="form-group">
                 <label for="Sub_metering_2">Sub-metering 2 (Wh):</label>
-                <input type="number" id="Sub_metering_2" name="Sub_metering_2" step="any" required>
+                <input type="number" id="Sub_metering_2" name="Sub_metering_2" step="0.01" placeholder="e.g., 2.0" required>
             </div>
             
             <div class="form-group">
-                <label for="Sub_metering_3">Sub-metering 3 (Wh):</label>
-                <input type="number" id="Sub_metering_3" name="Sub_metering_3" step="any" required>
+                <label for="Sub_metering_3">Sub-metering_3 (Wh):</label>
+                <input type="number" id="Sub_metering_3" name="Sub_metering_3" step="0.01" placeholder="e.g., 15.0" required>
             </div>
             
             <button type="submit">Predict</button>
