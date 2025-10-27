@@ -1,0 +1,158 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python src/data_preprocessing.py
+    deps:
+    - path: src/data_preprocessing.py
+      hash: md5
+      md5: c3d0eaca9014d55be7cdb9e9e3e8a562
+      size: 3267
+    params:
+      params.yaml:
+        base:
+          project_name: energy_consumption_prediction
+          random_state: 42
+        data:
+          processed_data_dir: data/processed
+          cleaned_file: cleaned_data.csv
+          train_file: train.csv
+          test_file: test.csv
+        preprocessing:
+          separator: ;
+          missing_value_char: '?'
+          target_col: Global_active_power
+    outs:
+    - path: data/processed/cleaned_data.csv
+      hash: md5
+      md5: 42cf8f5a61afa149bb7f463c6c594cc2
+      size: 111694370
+  split:
+    cmd: python src/data_split.py
+    deps:
+    - path: data/processed/cleaned_data.csv
+      hash: md5
+      md5: 42cf8f5a61afa149bb7f463c6c594cc2
+      size: 111694370
+    - path: src/data_split.py
+      hash: md5
+      md5: 1f31c47747187b3b3b2afb250f6e5f5f
+      size: 3067
+    params:
+      params.yaml:
+        base:
+          project_name: energy_consumption_prediction
+          random_state: 42
+        data:
+          processed_data_dir: data/processed
+          cleaned_file: cleaned_data.csv
+          train_file: train.csv
+          test_file: test.csv
+        data_split:
+          test_split_ratio: 0.2
+        featurization:
+          features_to_use:
+          - Global_reactive_power
+          - Voltage
+          - Global_intensity
+          - Sub_metering_1
+          - Sub_metering_2
+          - Sub_metering_3
+        preprocessing:
+          separator: ;
+          missing_value_char: '?'
+          target_col: Global_active_power
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 0e12df91da735ebf3fea17e17ca2febf
+      size: 22338154
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 93c90a9012fe4e8287d4ff4e38d50460
+      size: 89356339
+  train_model:
+    cmd: python src/train.py
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 93c90a9012fe4e8287d4ff4e38d50460
+      size: 89356339
+    - path: src/train.py
+      hash: md5
+      md5: e1f9fa336bf980b88f373a3c0682cdeb
+      size: 2900
+    params:
+      params.yaml:
+        base:
+          project_name: energy_consumption_prediction
+          random_state: 42
+        data:
+          processed_data_dir: data/processed
+          cleaned_file: cleaned_data.csv
+          train_file: train.csv
+          test_file: test.csv
+        featurization:
+          features_to_use:
+          - Global_reactive_power
+          - Voltage
+          - Global_intensity
+          - Sub_metering_1
+          - Sub_metering_2
+          - Sub_metering_3
+        model.colsample_bytree: 0.8
+        model.learning_rate: 0.05
+        model.max_depth: 8
+        model.min_child_weight: 1
+        model.n_estimators: 200
+        model.subsample: 0.8
+        preprocessing:
+          separator: ;
+          missing_value_char: '?'
+          target_col: Global_active_power
+    outs:
+    - path: models/model.joblib
+      hash: md5
+      md5: 9466a18520916e5ecc93c714b8dd8a5d
+      size: 3416167
+  evaluate_model:
+    cmd: python src/evaluate.py
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 0e12df91da735ebf3fea17e17ca2febf
+      size: 22338154
+    - path: models/model.joblib
+      hash: md5
+      md5: 9466a18520916e5ecc93c714b8dd8a5d
+      size: 3416167
+    - path: src/evaluate.py
+      hash: md5
+      md5: df2eb6ad6a2bd67a230dff1138ae4261
+      size: 3061
+    params:
+      params.yaml:
+        base:
+          project_name: energy_consumption_prediction
+          random_state: 42
+        data:
+          processed_data_dir: data/processed
+          cleaned_file: cleaned_data.csv
+          train_file: train.csv
+          test_file: test.csv
+        featurization:
+          features_to_use:
+          - Global_reactive_power
+          - Voltage
+          - Global_intensity
+          - Sub_metering_1
+          - Sub_metering_2
+          - Sub_metering_3
+        preprocessing:
+          separator: ;
+          missing_value_char: '?'
+          target_col: Global_active_power
+    outs:
+    - path: reports/metrics.json
+      hash: md5
+      md5: bdff05fd8d62bc35cdba76faa39f438c
+      size: 74
