@@ -45,16 +45,19 @@ jobs:
     
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        # FIX: Add '@v4' to the end of this line
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy to EC2 via SSM
+        # FIX: Add '@v1' to the end of this line
         uses: aws-actions/aws-ssm-send-command@v1
         with:
           instance-ids: ${{ secrets.AWS_EC2_INSTANCE_ID }}
+          timeout-seconds: '120'
           command: |
             # Pull the latest Docker image from Docker Hub
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest
