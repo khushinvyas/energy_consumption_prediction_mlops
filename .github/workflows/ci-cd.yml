@@ -62,6 +62,6 @@ jobs:
               "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest",
               "docker stop energy-app || true",
               "docker rm energy-app || true",
-              "docker run -d --name energy-app -p 5000:5000 ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest"
+              "docker run -d --name energy-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest"
             ]' \
             --output json
