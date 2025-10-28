@@ -40,18 +40,22 @@ jobs:
   # This job demonstrates how you might deploy the new image to a server.
   # It requires additional secrets for server access (SSH_HOST, SSH_USERNAME, SSH_KEY).
   deploy:
-    # This job will only run after the 'build-and-push' job has succeeded
     needs: build-and-push
     runs-on: ubuntu-latest
     
     steps:
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@master
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_KEY_BASE64 }}
-          script: |
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to EC2 via SSM
+        uses: aws-actions/aws-ssm-send-command@v1
+        with:
+          instance-ids: ${{ secrets.AWS_EC2_INSTANCE_ID }}
+          command: |
             # Pull the latest Docker image from Docker Hub
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest
             
