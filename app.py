@@ -4,6 +4,8 @@ import joblib
 from flask import Flask, render_template, request
 import numpy as np
 import yaml
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -17,6 +19,18 @@ model_path = "models/model.pkl"
 model = None
 if os.path.exists(model_path):
     model = joblib.load(model_path)
+else:
+    # Try download from S3 if configured
+    s3_bucket = os.getenv('S3_BUCKET')
+    s3_key = os.getenv('S3_MODEL_KEY', 'models/model.pkl')
+    if s3_bucket:
+        try:
+            os.makedirs('models', exist_ok=True)
+            s3 = boto3.client('s3', region_name=os.getenv('AWS_REGION'))
+            s3.download_file(s3_bucket, s3_key, model_path)
+            model = joblib.load(model_path)
+        except (BotoCoreError, ClientError, FileNotFoundError):
+            model = None
 
 @app.route('/')
 def home():
