@@ -53,18 +53,15 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy to EC2 via SSM
-        # FIX: Add '@v1' to the end of this line
-        uses: aws-actions/aws-ssm-send-command@v1
-        with:
-          instance-ids: ${{ secrets.AWS_EC2_INSTANCE_ID }}
-          timeout-seconds: '120'
-          command: |
-            # Pull the latest Docker image from Docker Hub
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest
-            
-            # Stop and remove the existing container if it's running
-            docker stop energy-app || true
-            docker rm energy-app || true
-            
-            # Run the new container from the updated image
-            docker run -d --name energy-app -p 5000:5000 ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest
+        run: |
+          aws ssm send-command \
+            --instance-ids "${{ secrets.AWS_EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy energy app" \
+            --parameters commands='[
+              "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest",
+              "docker stop energy-app || true",
+              "docker rm energy-app || true",
+              "docker run -d --name energy-app -p 5000:5000 ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest"
+            ]' \
+            --output json
