@@ -14,7 +14,9 @@ with open('params.yaml', 'r') as f:
 
 features = params['train']['features']
 model_path = "models/model.pkl"
-model = joblib.load(model_path)
+model = None
+if os.path.exists(model_path):
+    model = joblib.load(model_path)
 
 @app.route('/')
 def home():
@@ -35,6 +37,11 @@ def predict():
     input_array = np.array(input_values).reshape(1, -1)
     
     # Make prediction
+    if model is None:
+        return render_template('index.html', 
+                              prediction_text='Model not found. Please train and mount models/model.pkl.',
+                              input_values=dict(zip(features, input_values)),
+                              features=features)
     prediction = model.predict(input_array)[0]
     
     # Return the prediction to the user

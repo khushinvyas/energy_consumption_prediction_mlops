@@ -11,10 +11,9 @@ COPY requirements.txt .
 # We use --no-cache-dir to reduce image size
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application's code into the container
-# This includes app.py, the trained model, templates, and params.yaml
+# Copy application code (model is optional at build time)
+RUN mkdir -p models templates
 COPY app.py .
-COPY models/model.pkl ./models/
 COPY templates/index.html ./templates/
 COPY params.yaml .
 
