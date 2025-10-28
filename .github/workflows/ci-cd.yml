@@ -1,114 +1,63 @@
-# This is a GitHub Actions workflow file for CI/CD
-# It defines automated processes that run when certain events occur
+# .github/workflows/ci-cd.yml
 
-# The 'on' section defines when this workflow will trigger
-# In this case, it triggers on pushes to the main branch
+name: CI/CD - Build and Push Docker Image
+
+# This workflow runs on any push to the main branch
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - master
 
-# A workflow run is made up of one or more jobs
-# Here we define a single job called 'build-and-test'
 jobs:
-  build-and-test:
-    # The type of runner that the job will run on
-    # ubuntu-latest is a virtual machine with the latest Ubuntu OS
+  build-and-push:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Step 1: Check out the repository code
-      # actions/checkout@v4 is a pre-built action that checks out your repository
-      # This makes your code available to subsequent steps
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Step 2: Log in to Docker Hub
+      # This uses the secrets you configured in your GitHub repository settings
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          # Fetch all history for all tags and branches
-          # This is needed for DVC to work properly
-          fetch-depth: 0
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Step 2: Set up Python environment
-      # actions/setup-python@v4 is a pre-built action that sets up a Python environment
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 3: Build and push the Docker image
+      # The image will be tagged with your Docker Hub username and a timestamp
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
         with:
-          # Specify the Python version
-          python-version: '3.9'
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest,${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:${{ github.sha }}
 
-      # Step 3: Cache pip dependencies
-      # This speeds up subsequent runs by caching installed packages
-      - name: Cache pip dependencies
-        uses: actions/cache@v3
+  # (Optional) Example Deployment Job
+  # This job demonstrates how you might deploy the new image to a server.
+  # It requires additional secrets for server access (SSH_HOST, SSH_USERNAME, SSH_KEY).
+  deploy:
+    # This job will only run after the 'build-and-push' job has succeeded
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@master
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      # Step 4: Install dependencies
-      # Install all Python packages required for the project
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      # Step 5: Initialize DVC
-      # Initialize DVC if not already initialized
-      - name: Initialize DVC
-        run: |
-          if [ ! -f ".dvc/config" ]; then
-            dvc init
-          fi
-
-      # Step 6: Download data
-      # Download the data needed for the project
-      - name: Download data
-        run: |
-          mkdir -p data/raw
-          # If you have a remote storage configured, you would use:
-          # dvc pull
-          # For this example, we'll assume the data is already in the repository
-          # or you would add a step to download it from the source
-
-      # Step 7: Run the DVC pipeline
-      # This reproduces the entire pipeline defined in dvc.yaml
-      # It ensures that all stages are executed with the latest code and parameters
-      - name: Run DVC pipeline
-        run: |
-          dvc repro
-
-      # Step 8: Run DVC experiments
-      # Run a baseline experiment to verify the pipeline works
-      - name: Run baseline experiment
-        run: |
-          dvc exp run --name baseline
-
-      # Step 9: Compare experiments
-      # Show the results of all experiments
-      - name: Compare experiments
-        run: |
-          dvc exp show
-
-      # Step 10: Build Docker image
-      # Build the Docker image to ensure it works correctly
-      - name: Build Docker image
-        run: |
-          docker build -t energy-prediction-app .
-
-      # Step 11: Test Docker container
-      # Run the Docker container briefly to ensure it starts correctly
-      - name: Test Docker container
-        run: |
-          docker run --rm -d -p 5000:5000 --name test-container energy-prediction-app
-          sleep 10
-          # Check if the container is still running
-          if [ "$(docker inspect -f '{{.State.Running}}' test-container)" = "true" ]; then
-            echo "Container is running successfully"
-            docker stop test-container
-          else
-            echo "Container failed to start"
-            docker logs test-container
-            exit 1
-          fi
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            # Pull the latest Docker image from Docker Hub
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest
+            
+            # Stop and remove the existing container if it's running
+            docker stop energy-app || true
+            docker rm energy-app || true
+            
+            # Run the new container from the updated image
+            docker run -d --name energy-app -p 5000:5000 ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest
