@@ -1,10 +1,10 @@
 # dvc.yaml
 stages:
   preprocess:
-    cmd: python preprocess.py
+    cmd: python src/preprocess.py
     deps:
       - data/raw/household_power_consumption_hourly.csv
-      - preprocess.py
+      - src/preprocess.py
     outs:
       - data/processed/X_train.csv
       - data/processed/X_test.csv
@@ -17,11 +17,11 @@ stages:
       - train.features
 
   train:
-    cmd: python train.py
+    cmd: python src/train.py
     deps:
       - data/processed/X_train.csv
       - data/processed/y_train.csv
-      - train.py
+      - src/train.py
     outs:
       - models/model.pkl
     params:
@@ -42,12 +42,12 @@ stages:
       - preprocess.target_column # For consistency check in train.py
 
   evaluate:
-    cmd: python evaluate.py
+    cmd: python src/evaluate.py
     deps:
       - models/model.pkl
       - data/processed/X_test.csv
       - data/processed/y_test.csv
-      - evaluate.py
+      - src/evaluate.py
     metrics:
       - metrics/metrics.json:
           cache: false # Metrics are lightweight, no need to dvc cache them

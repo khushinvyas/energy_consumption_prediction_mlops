@@ -1,0 +1,36 @@
+# VCS
+.git
+.gitignore
+.github/
+
+# DVC local cache
+.dvc/cache/
+.dvc/tmp/
+
+# Data (exclude from image)
+data/
+
+# Not needed in image
+.ipynb_checkpoints/
+*.ipynb
+logs/
+*.log
+__pycache__/
+*.py[cod]
+
+# Envs
+.env
+.venv/
+venv/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

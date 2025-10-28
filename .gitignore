@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.dll
+
+# Environments
+.env
+.env.*
+.venv/
+venv/
+env/
+
+# Editors/IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Testing/Coverage
+.pytest_cache/
+.coverage*
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# DVC
+.dvc/cache/
+.dvc/tmp/
+
+# Logs & temp
+logs/
+*.log
+*.tmp
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Node (if present)
+node_modules/
+
+# Data (tracked via DVC)
+data/
+
+# Models (redundant with models/.gitignore, kept for safety)
+models/*.pkl
+models/*.joblib

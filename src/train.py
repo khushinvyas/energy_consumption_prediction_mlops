@@ -48,10 +48,30 @@ def train_model(processed_data_dir, model_output_dir, params):
         exit(1)
 
 
-    # Initialize model
+    # Initialize model with filtered parameters per estimator
     if model_name == "RandomForestRegressor":
-        model = RandomForestRegressor(**model_params)
+        rf_allowed_params = {
+            "n_estimators",
+            "criterion",
+            "max_depth",
+            "min_samples_split",
+            "min_samples_leaf",
+            "min_weight_fraction_leaf",
+            "max_features",
+            "max_leaf_nodes",
+            "min_impurity_decrease",
+            "bootstrap",
+            "oob_score",
+            "n_jobs",
+            "random_state",
+            "warm_start",
+            "ccp_alpha",
+            "max_samples",
+        }
+        filtered_params = {k: v for k, v in model_params.items() if k in rf_allowed_params}
+        model = RandomForestRegressor(**filtered_params)
     elif model_name == "XGBoostRegressor":
+        # Pass through for XGBoost; train.py expects xgboost installed
         model = XGBRegressor(**model_params)
     else:
         logging.error(f"Unsupported model type: {model_name}")

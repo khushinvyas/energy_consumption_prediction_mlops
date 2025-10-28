@@ -81,40 +81,12 @@
         </p>
         
         <form action="/predict" method="post">
+            {% for feature in features %}
             <div class="form-group">
-                <label for="Global_reactive_power">Global Reactive Power (kW):</label>
-                <!-- 
-                  CHANGE 1: Added a placeholder to show an example format.
-                  CHANGE 2: Changed step="any" to step="0.01" to be more explicit about allowing decimals.
-                -->
-                <input type="number" id="Global_reactive_power" name="Global_reactive_power" step="0.01" placeholder="e.g., 0.25" required>
+                <label for="{{ feature }}">{{ feature.replace('_', ' ') }}:</label>
+                <input type="number" id="{{ feature }}" name="{{ feature }}" step="0.01" placeholder="e.g., 0.0" required>
             </div>
-            
-            <div class="form-group">
-                <label for="Voltage">Voltage (V):</label>
-                <input type="number" id="Voltage" name="Voltage" step="0.01" placeholder="e.g., 235.50" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="Global_intensity">Global Intensity (A):</label>
-                <input type="number" id="Global_intensity" name="Global_intensity" step="0.01" placeholder="e.g., 18.4" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="Sub_metering_1">Sub-metering 1 (Wh):</label>
-                <input type="number" id="Sub_metering_1" name="Sub_metering_1" step="0.01" placeholder="e.g., 1.0" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="Sub_metering_2">Sub-metering 2 (Wh):</label>
-                <input type="number" id="Sub_metering_2" name="Sub_metering_2" step="0.01" placeholder="e.g., 2.0" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="Sub_metering_3">Sub-metering_3 (Wh):</label>
-                <input type="number" id="Sub_metering_3" name="Sub_metering_3" step="0.01" placeholder="e.g., 15.0" required>
-            </div>
-            
+            {% endfor %}
             <button type="submit">Predict</button>
         </form>
         
