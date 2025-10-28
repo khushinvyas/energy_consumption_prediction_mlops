@@ -1,61 +1,55 @@
+# dvc.yaml
 stages:
-  # Data preprocessing stage
   preprocess:
-    cmd: python src/data_preprocessing.py
+    cmd: python preprocess.py
     deps:
-      # --- UPDATED: Add the local raw data file as a dependency ---
-      - data/raw/household_power_consumption.txt
-      - src/data_preprocessing.py
-    params:
-      - base
-      - data
-      - preprocessing
+      - data/raw/household_power_consumption_hourly.csv
+      - preprocess.py
     outs:
-      - data/processed/cleaned_data.csv
-
-  # Data split stage
-  split:
-    cmd: python src/data_split.py
-    deps:
-      - data/processed/cleaned_data.csv
-      - src/data_split.py
+      - data/processed/X_train.csv
+      - data/processed/X_test.csv
+      - data/processed/y_train.csv
+      - data/processed/y_test.csv
     params:
-      - base
-      - data
-      - data_split
-      - featurization
-      - preprocessing
+      - preprocess.test_split_ratio
+      - preprocess.random_state
+      - preprocess.target_column
+      - train.features
+
+  train:
+    cmd: python train.py
+    deps:
+      - data/processed/X_train.csv
+      - data/processed/y_train.csv
+      - train.py
     outs:
-      - data/processed/train.csv
-      - data/processed/test.csv
-
-  # Model training stage
-  train_model:
-    cmd: python src/train.py
-    deps:
-      - data/processed/train.csv
-      - src/train.py
+      - models/model.pkl
     params:
-      - base
-      - data
-      - featurization
-      - preprocessing
-      - model
-      - tuning
-    outs:
-      - models/model.joblib
+      - train.model.name
+      - train.model.params.n_estimators
+      - train.model.params.max_depth
+      - train.model.params.random_state
+      - train.model.params.min_samples_split
+      - train.model.params.min_samples_leaf
+      - train.model.params.max_features
+      # XGBoost specific parameters, DVC will ignore if not used by model.name
+      - train.model.params.learning_rate
+      - train.model.params.subsample
+      - train.model.params.colsample_bytree
+      - train.model.params.reg_alpha
+      - train.model.params.gamma
+      - train.model.params.min_child_weight
+      - preprocess.target_column # For consistency check in train.py
 
-  # Model evaluation stage
-  evaluate_model:
-    cmd: python src/evaluate.py
+  evaluate:
+    cmd: python evaluate.py
     deps:
-      - data/processed/test.csv
-      - models/model.joblib
-      - src/evaluate.py
-    params:
-      - base
-      - data
-      - featurization
-      - preprocessing
+      - models/model.pkl
+      - data/processed/X_test.csv
+      - data/processed/y_test.csv
+      - evaluate.py
     metrics:
-      - reports/metrics.json
+      - metrics/metrics.json:
+          cache: false # Metrics are lightweight, no need to dvc cache them
+    params:
+      - preprocess.target_column # For consistency check in evaluate.py

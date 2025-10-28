@@ -1,60 +1,122 @@
-# Base project parameters
-base:
-  project_name: "energy_consumption_prediction"
-  random_state: 42
-
-# Data parameters
-data:
-  # --- UPDATED: Define the path to the local raw data file ---
-  raw_data_dir: "data/raw"
-  raw_data_file: "household_power_consumption.txt"
-  processed_data_dir: "data/processed"
-  cleaned_file: "cleaned_data.csv"
-  train_file: "train.csv"
-  test_file: "test.csv"
-
-# Preprocessing parameters
-preprocessing:
-  # --- UPDATED: This is now used again ---
-  separator: ";"
-  missing_value_char: "?" # This is no longer used but kept for reference
-  target_col: "Global_active_power"
-
-# Data split parameters
-data_split:
+# params.yaml
+preprocess:
   test_split_ratio: 0.2
+  random_state: 42
+  target_column: "Global_active_power"
 
-# Feature engineering parameters
-featurization:
-  features_to_use:
+train:
+  features:
+    - "hour_of_day"
+    - "day_of_week"
+    - "month"
+    - "year"
     - "Global_reactive_power"
     - "Voltage"
     - "Global_intensity"
     - "Sub_metering_1"
     - "Sub_metering_2"
     - "Sub_metering_3"
+    - "Sub_metering_4"
 
-# Model parameters (XGBoost)
-model:
-  model_name: "XGBoostRegressor"
-  n_estimators: 100
-  max_depth: 6
-  learning_rate: 0.1
-  min_child_weight: 1
-  subsample: 0.8
-  colsample_bytree: 0.8
+  # Default model and parameters for app.py (will be overridden by dvc exp)
+  model:
+    name: "RandomForestRegressor"
+    params:
+      n_estimators: 100
+      max_depth: 10
+      random_state: 42
+      min_samples_split: 2
+      min_samples_leaf: 1
+      max_features: 1.0
 
-# --- Advanced Hyperparameter Tuning Configuration ---
-tuning:
-  cv_folds: 5
-  n_iter: 100
-  param_distributions:
-    model.n_estimators: [100, 200, 300, 400, 500]
-    model.max_depth: [4, 6, 8, 10, 12]
-    model.learning_rate: [0.01, 0.05, 0.1, 0.2, 0.3]
-    model.min_child_weight: [1, 5, 10]
-    model.subsample: [0.6, 0.7, 0.8, 0.9, 1.0]
-    model.colsample_bytree: [0.6, 0.7, 0.8, 0.9, 1.0]
-    model.reg_alpha: [0, 0.01, 0.1, 1]
-    model.reg_lambda: [1, 1.5, 2, 3, 4]
-    model.gamma: [0, 0.1, 0.2, 0.3, 0.4]
+# Define specific experiment configurations for Random Forest
+experiments_rf:
+  exp_rf_1:
+    train.model.params.n_estimators: 50
+    train.model.params.max_depth: 5
+  exp_rf_2:
+    train.model.params.n_estimators: 100
+    train.model.params.max_depth: 10
+  exp_rf_3:
+    train.model.params.n_estimators: 150
+    train.model.params.max_depth: 15
+  exp_rf_4:
+    train.model.params.n_estimators: 200
+    train.model.params.max_depth: 10
+  exp_rf_5:
+    train.model.params.n_estimators: 100
+    train.model.params.max_depth: 20
+  exp_rf_6:
+    train.model.params.n_estimators: 100
+    train.model.params.min_samples_split: 5
+  exp_rf_7:
+    train.model.params.n_estimators: 200
+    train.model.params.min_samples_split: 5
+  exp_rf_8:
+    train.model.params.n_estimators: 50
+    train.model.params.max_depth: 5
+    train.model.params.min_samples_leaf: 2
+  exp_rf_9:
+    train.model.params.n_estimators: 100
+    train.model.params.max_depth: 10
+    train.model.params.min_samples_leaf: 4
+  exp_rf_10:
+    train.model.params.n_estimators: 150
+    train.model.params.max_depth: None # Let it grow fully
+    train.model.params.min_samples_leaf: 2
+
+# Define specific experiment configurations for XGBoost
+experiments_xgb:
+  exp_xgb_1:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 50
+    train.model.params.max_depth: 3
+    train.model.params.learning_rate: 0.1
+  exp_xgb_2:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 100
+    train.model.params.max_depth: 5
+    train.model.params.learning_rate: 0.05
+  exp_xgb_3:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 150
+    train.model.params.max_depth: 7
+    train.model.params.learning_rate: 0.1
+  exp_xgb_4:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 200
+    train.model.params.max_depth: 5
+    train.model.params.learning_rate: 0.2
+  exp_xgb_5:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 100
+    train.model.params.max_depth: 3
+    train.model.params.subsample: 0.8
+  exp_xgb_6:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 150
+    train.model.params.max_depth: 5
+    train.model.params.colsample_bytree: 0.7
+  exp_xgb_7:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 100
+    train.model.params.max_depth: 7
+    train.model.params.reg_alpha: 0.1
+  exp_xgb_8:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 120
+    train.model.params.max_depth: 4
+    train.model.params.learning_rate: 0.08
+    train.model.params.gamma: 0.1
+  exp_xgb_9:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 80
+    train.model.params.max_depth: 6
+    train.model.params.learning_rate: 0.15
+    train.model.params.min_child_weight: 1
+  exp_xgb_10:
+    train.model.name: "XGBoostRegressor"
+    train.model.params.n_estimators: 180
+    train.model.params.max_depth: 5
+    train.model.params.learning_rate: 0.07
+    train.model.params.subsample: 0.9

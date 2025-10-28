@@ -1,106 +1,76 @@
-import os
+# train.py
 import pandas as pd
+import numpy as np
 import joblib
+import os
 import yaml
+from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
-# CHANGE: Import RandomizedSearchCV instead of GridSearchCV
-from sklearn.model_selection import RandomizedSearchCV 
-import sys
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def load_params():
+    """Loads parameters from params.yaml."""
     try:
-        with open("params.yaml", "r") as f:
-            return yaml.safe_load(f)
+        with open('params.yaml', 'r') as f:
+            params = yaml.safe_load(f)
+        return params
     except FileNotFoundError:
-        print("ERROR: params.yaml not found.")
-        sys.exit(1)
+        logging.error("params.yaml not found. Please ensure it's in the root directory.")
+        exit(1)
+    except yaml.YAMLError as e:
+        logging.error(f"Error reading params.yaml: {e}")
+        exit(1)
 
-def main():
-    try:
-        params = load_params()
-        
-        # Define paths
-        processed_dir = params["data"]["processed_data_dir"]
-        train_file_path = os.path.join(processed_dir, params["data"]["train_file"])
-        model_dir = "models"
-        model_path = os.path.join(model_dir, "model.joblib")
-        
-        # --- VALIDATION: Check if training data exists ---
-        if not os.path.exists(train_file_path):
-            print(f"ERROR: Training data file not found at '{train_file_path}'.")
-            sys.exit(1)
+def train_model(processed_data_dir, model_output_dir, params):
+    """
+    Loads processed data, trains a model, and saves it.
+    """
+    # Load parameters
+    model_name = params['train']['model']['name']
+    model_params = params['train']['model']['params']
+    target_column = params['preprocess']['target_column'] # Need target column for features later
 
-        # Load the training data
-        print(f"Loading training data from {train_file_path}")
-        train_df = pd.read_csv(train_file_path)
-        
-        # Define features and target
-        features = params["featurization"]["features_to_use"]
-        target = params["preprocessing"]["target_col"]
-        
-        X_train = train_df[features]
-        y_train = train_df[target]
-        
-        # --- RIGOROUS TRAINING WITH RANDOMIZED SEARCH AND CROSS-VALIDATION ---
-        
-        # 1. Get the base model and tuning parameters from params.yaml
-        base_model_params = params["model"]
-        tuning_params = params["tuning"]
-        param_distributions = tuning_params["param_distributions"]
-        cv_folds = tuning_params["cv_folds"]
-        n_iter = tuning_params["n_iter"]
-        
-        print(f"Starting advanced training with {cv_folds}-fold cross-validation...")
-        print(f"Will test {n_iter} random parameter combinations.")
-        print(f"Parameter distributions to sample from: {param_distributions}")
-        
-        # 2. Initialize the base XGBoost model
-        base_model = XGBRegressor(
-            # Use a reasonable default for parameters not being tuned
-            n_estimators=base_model_params["n_estimators"],
-            max_depth=base_model_params["max_depth"],
-            learning_rate=base_model_params["learning_rate"],
-            min_child_weight=base_model_params["min_child_weight"],
-            subsample=base_model_params["subsample"],
-            colsample_bytree=base_model_params["colsample_bytree"],
-            random_state=params["base"]["random_state"],
-            n_jobs=-1 
-        )
-        
-        # 3. Set up RandomizedSearchCV
-        # This will test n_iter random combinations from param_distributions.
-        random_search = RandomizedSearchCV(
-            estimator=base_model,
-            param_distributions=param_distributions,
-            n_iter=n_iter,  # Number of parameter settings sampled
-            cv=cv_folds,    # Number of cross-validation folds
-            scoring='neg_root_mean_squared_error', # Metric to optimize
-            verbose=2,      # Show progress
-            random_state=params["base"]["random_state"], # For reproducibility
-            n_jobs=-1       # Use all available CPU cores
-        )
-        
-        # 4. Run the randomized search on the training data
-        print("Running RandomizedSearchCV... This will take some time.")
-        random_search.fit(X_train, y_train)
-        
-        # 5. Print the results
-        print("\n--- Randomized Search Complete ---")
-        print(f"Best parameters found: {random_search.best_params_}")
-        print(f"Best cross-validated RMSE: {-random_search.best_score_:.4f}")
-        
-        # 6. Save the best model
-        # RandomizedSearchCV automatically refits a model on the entire training set
-        # using the best parameters it found.
-        os.makedirs(model_dir, exist_ok=True)
-        print(f"Saving best model to {model_path}")
-        joblib.dump(random_search.best_estimator_, model_path)
-        
-        print("Advanced model training completed successfully.")
+    logging.info(f"Training model: {model_name} with parameters: {model_params}")
 
-    except Exception as e:
-        print(f"An unexpected error occurred during model training: {e}")
-        sys.exit(1)
+    # Load data
+    X_train = pd.read_csv(os.path.join(processed_data_dir, 'X_train.csv'), index_col='datetime', parse_dates=True)
+    y_train = pd.read_csv(os.path.join(processed_data_dir, 'y_train.csv'), index_col='datetime', parse_dates=True)
+    
+    # Ensure y_train is a Series, not a DataFrame
+    if isinstance(y_train, pd.DataFrame) and len(y_train.columns) == 1:
+        y_train = y_train.iloc[:, 0]
+    elif isinstance(y_train, pd.DataFrame) and target_column in y_train.columns:
+        y_train = y_train[target_column]
+    else:
+        logging.error(f"Could not correctly load y_train as a Series. Expected column: {target_column}")
+        exit(1)
+
+
+    # Initialize model
+    if model_name == "RandomForestRegressor":
+        model = RandomForestRegressor(**model_params)
+    elif model_name == "XGBoostRegressor":
+        model = XGBRegressor(**model_params)
+    else:
+        logging.error(f"Unsupported model type: {model_name}")
+        exit(1)
+
+    # Train model
+    model.fit(X_train, y_train)
+    logging.info(f"{model_name} training complete.")
+
+    # Create output directory if it doesn't exist
+    os.makedirs(model_output_dir, exist_ok=True)
+
+    # Save model
+    model_path = os.path.join(model_output_dir, 'model.pkl')
+    joblib.dump(model, model_path)
+    logging.info(f"Model saved to {model_path}")
 
 if __name__ == "__main__":
-    main()
+    params = load_params()
+    processed_data_directory = 'data/processed'
+    model_output_directory = 'models'
+    train_model(processed_data_directory, model_output_directory, params)
