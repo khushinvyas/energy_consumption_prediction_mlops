@@ -16,6 +16,8 @@ RUN mkdir -p models templates
 COPY app.py .
 COPY templates/index.html ./templates/
 COPY params.yaml .
+# Copy the checked-in model files into the image so the app can use them directly
+COPY models ./models/
 
 # Make port 5000 available to the world outside this container
 EXPOSE 5000
