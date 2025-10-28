@@ -50,6 +50,4 @@ node_modules/
 # Data (tracked via DVC)
 data/
 
-# Models (redundant with models/.gitignore, kept for safety)
-models/*.pkl
-models/*.joblib
+
