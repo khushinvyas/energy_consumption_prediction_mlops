@@ -59,9 +59,14 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Deploy energy app" \
             --parameters commands='[
-              "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest",
-              "docker stop energy-app || true",
-              "docker rm energy-app || true",
-              "docker run -d --name energy-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest"
+              "set -euxo pipefail",
+              "if command -v apt >/dev/null 2>&1; then sudo apt-get update -y && sudo apt-get install -y docker.io; fi",
+              "if command -v yum >/dev/null 2>&1; then sudo yum update -y && sudo yum install -y docker; fi",
+              "sudo systemctl enable docker || true",
+              "sudo systemctl start docker || true",
+              "sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest",
+              "sudo docker stop energy-app || true",
+              "sudo docker rm energy-app || true",
+              "sudo docker run -d --restart=always --name energy-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/energy-prediction-app:latest"
             ]' \
             --output json
