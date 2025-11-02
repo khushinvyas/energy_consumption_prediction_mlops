@@ -1,96 +1,104 @@
-# train.py
+# src/train.py
 import pandas as pd
 import numpy as np
 import joblib
 import os
 import yaml
+import logging
+import argparse # Import for command-line arguments
 from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
-import logging
+from lightgbm import LGBMRegressor # Import new model
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import mean_absolute_error, r2_score
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def load_params():
     """Loads parameters from params.yaml."""
-    try:
-        with open('params.yaml', 'r') as f:
-            params = yaml.safe_load(f)
-        return params
-    except FileNotFoundError:
-        logging.error("params.yaml not found. Please ensure it's in the root directory.")
-        exit(1)
-    except yaml.YAMLError as e:
-        logging.error(f"Error reading params.yaml: {e}")
-        exit(1)
+    with open('params.yaml', 'r') as f:
+        return yaml.safe_load(f)
 
-def train_model(processed_data_dir, model_output_dir, params):
-    """
-    Loads processed data, trains a model, and saves it.
-    """
-    # Load parameters
-    model_name = params['train']['model']['name']
-    model_params = params['train']['model']['params']
-    target_column = params['preprocess']['target_column'] # Need target column for features later
+def get_model_instance(model_name, params):
+    """Initializes a model instance based on its name and parameters."""
+    if model_name == "RandomForestRegressor":
+        return RandomForestRegressor(**params)
+    elif model_name == "XGBoostRegressor":
+        return XGBRegressor(**params)
+    elif model_name == "LightGBMRegressor":
+        return LGBMRegressor(**params)
+    else:
+        raise ValueError(f"Unsupported model type: {model_name}")
 
-    logging.info(f"Training model: {model_name} with parameters: {model_params}")
+def perform_time_series_cross_validation(X, y, model_config):
+    """Performs TCV for a single, specified model."""
+    model_name = model_config['name']
+    logging.info(f"--- Starting TCV for {model_name} ---")
+    
+    model = get_model_instance(model_name, model_config['params'])
+    
+    tscv = TimeSeriesSplit(n_splits=5) # Hardcoding 5 splits for simplicity
+    mae_scores, r2_scores = [], []
+
+    for i, (train_index, val_index) in enumerate(tscv.split(X)):
+        X_train_fold, X_val_fold = X.iloc[train_index], X.iloc[val_index]
+        y_train_fold, y_val_fold = y.iloc[train_index], y.iloc[val_index]
+        
+        model.fit(X_train_fold, y_train_fold)
+        predictions = model.predict(X_val_fold)
+        
+        mae = mean_absolute_error(y_val_fold, predictions)
+        r2 = r2_score(y_val_fold, predictions)
+        mae_scores.append(mae)
+        r2_scores.append(r2)
+        logging.info(f"Fold {i+1}/5 -> MAE: {mae:.4f}, R2 Score: {r2:.4f}")
+
+    logging.info(f"--- TCV Summary for {model_name} ---")
+    logging.info(f"Average MAE: {np.mean(mae_scores):.4f} (std: {np.std(mae_scores):.4f})")
+    logging.info(f"Average R2 Score: {np.mean(r2_scores):.4f} (std: {np.std(r2_scores):.4f})")
+    logging.info(f"--- Finished TCV for {model_name} ---\n")
+
+def train_model(model_config, params):
+    """Loads data and trains a single, specified model."""
+    processed_data_dir = 'data/processed'
+    model_output_dir = 'models'
+    
+    model_name = model_config['name']
+    model_params = model_config['params']
+    model_filename = model_config['file_name']
 
     # Load data
     X_train = pd.read_csv(os.path.join(processed_data_dir, 'X_train.csv'), index_col='datetime', parse_dates=True)
-    y_train = pd.read_csv(os.path.join(processed_data_dir, 'y_train.csv'), index_col='datetime', parse_dates=True)
-    
-    # Ensure y_train is a Series, not a DataFrame
-    if isinstance(y_train, pd.DataFrame) and len(y_train.columns) == 1:
-        y_train = y_train.iloc[:, 0]
-    elif isinstance(y_train, pd.DataFrame) and target_column in y_train.columns:
-        y_train = y_train[target_column]
-    else:
-        logging.error(f"Could not correctly load y_train as a Series. Expected column: {target_column}")
-        exit(1)
+    y_train = pd.read_csv(os.path.join(processed_data_dir, 'y_train.csv'), index_col='datetime', parse_dates=True).iloc[:, 0]
 
+    # Optional: Run Time-Series Cross-Validation
+    if params.get('validation', {}).get('run_tcv', False):
+        perform_time_series_cross_validation(X_train.copy(), y_train.copy(), model_config)
 
-    # Initialize model with filtered parameters per estimator
-    if model_name == "RandomForestRegressor":
-        rf_allowed_params = {
-            "n_estimators",
-            "criterion",
-            "max_depth",
-            "min_samples_split",
-            "min_samples_leaf",
-            "min_weight_fraction_leaf",
-            "max_features",
-            "max_leaf_nodes",
-            "min_impurity_decrease",
-            "bootstrap",
-            "oob_score",
-            "n_jobs",
-            "random_state",
-            "warm_start",
-            "ccp_alpha",
-            "max_samples",
-        }
-        filtered_params = {k: v for k, v in model_params.items() if k in rf_allowed_params}
-        model = RandomForestRegressor(**filtered_params)
-    elif model_name == "XGBoostRegressor":
-        # Pass through for XGBoost; train.py expects xgboost installed
-        model = XGBRegressor(**model_params)
-    else:
-        logging.error(f"Unsupported model type: {model_name}")
-        exit(1)
-
-    # Train model
+    # Train the final model
+    logging.info(f"Training final model: {model_name}")
+    model = get_model_instance(model_name, model_params)
     model.fit(X_train, y_train)
-    logging.info(f"{model_name} training complete.")
+    logging.info(f"Final training for {model_name} complete.")
 
-    # Create output directory if it doesn't exist
+    # Save the model
     os.makedirs(model_output_dir, exist_ok=True)
-
-    # Save model
-    model_path = os.path.join(model_output_dir, 'model.pkl')
+    model_path = os.path.join(model_output_dir, model_filename)
     joblib.dump(model, model_path)
     logging.info(f"Model saved to {model_path}")
 
 if __name__ == "__main__":
-    params = load_params()
-    processed_data_directory = 'data/processed'
-    model_output_directory = 'models'
-    train_model(processed_data_directory, model_output_directory, params)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model-name", help="The name of the model to train from params.yaml")
+    args = parser.parse_args()
+
+    all_params = load_params()
+    
+    # Find the specific model configuration from the list
+    model_to_train = next((m for m in all_params['train']['models'] if m['name'] == args.model_name), None)
+
+    if model_to_train:
+        train_model(model_to_train, all_params)
+    else:
+        logging.error(f"Model '{args.model_name}' not found in params.yaml")
+        exit(1)

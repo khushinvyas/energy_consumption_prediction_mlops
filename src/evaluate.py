@@ -1,77 +1,82 @@
-# evaluate.py
+# src/evaluate.py
 import pandas as pd
 import joblib
 import os
 import json
 import yaml
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import numpy as np
 import logging
+import argparse # Import for command-line arguments
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def load_params():
     """Loads parameters from params.yaml."""
-    try:
-        with open('params.yaml', 'r') as f:
-            params = yaml.safe_load(f)
-        return params
-    except FileNotFoundError:
-        logging.error("params.yaml not found. Please ensure it's in the root directory.")
-        exit(1)
-    except yaml.YAMLError as e:
-        logging.error(f"Error reading params.yaml: {e}")
-        exit(1)
+    with open('params.yaml', 'r') as f:
+        return yaml.safe_load(f)
 
-def evaluate_model(model_path, processed_data_dir, metrics_output_dir, params):
-    """
-    Loads model and test data, makes predictions, calculates and saves metrics.
-    """
-    logging.info(f"Loading model from {model_path}")
+def evaluate_model(model_config, params):
+    """Loads a specified model and evaluates it."""
+    model_name = model_config['name']
+    model_filename = model_config['file_name']
+    
+    model_path = os.path.join('models', model_filename)
+    processed_data_dir = 'data/processed'
+    metrics_output_dir = 'metrics'
+    plots_dir = params['validation']['plots_dir']
+
+    logging.info(f"--- Evaluating model: {model_name} ---")
     model = joblib.load(model_path)
 
-    logging.info(f"Loading test data from {processed_data_dir}")
+    # Load test data
     X_test = pd.read_csv(os.path.join(processed_data_dir, 'X_test.csv'), index_col='datetime', parse_dates=True)
-    y_test = pd.read_csv(os.path.join(processed_data_dir, 'y_test.csv'), index_col='datetime', parse_dates=True)
+    y_test = pd.read_csv(os.path.join(processed_data_dir, 'y_test.csv'), index_col='datetime', parse_dates=True).iloc[:, 0]
     
-    target_column = params['preprocess']['target_column']
-    if isinstance(y_test, pd.DataFrame) and len(y_test.columns) == 1:
-        y_test = y_test.iloc[:, 0]
-    elif isinstance(y_test, pd.DataFrame) and target_column in y_test.columns:
-        y_test = y_test[target_column]
-    else:
-        logging.error(f"Could not correctly load y_test as a Series. Expected column: {target_column}")
-        exit(1)
-
-
-    logging.info("Making predictions on the test set.")
     predictions = model.predict(X_test)
 
     # Calculate metrics
     mae = mean_absolute_error(y_test, predictions)
     rmse = np.sqrt(mean_squared_error(y_test, predictions))
     r2 = r2_score(y_test, predictions)
+    metrics = {'mae': mae, 'rmse': rmse, 'r2_score': r2}
 
-    metrics = {
-        'mae': mae,
-        'rmse': rmse,
-        'r2_score': r2
-    }
-
-    # Create output directory if it doesn't exist
+    # Save metrics to a model-specific file
     os.makedirs(metrics_output_dir, exist_ok=True)
-
-    # Save metrics
-    metrics_path = os.path.join(metrics_output_dir, 'metrics.json')
+    metrics_path = os.path.join(metrics_output_dir, f"{model_name}_metrics.json")
     with open(metrics_path, 'w') as f:
         json.dump(metrics, f, indent=4)
+    logging.info(f"Metrics for {model_name}: MAE={mae:.4f}, RMSE={rmse:.4f}, R2={r2:.4f}")
 
-    logging.info(f"Metrics calculated and saved to {metrics_path}")
-    logging.info(f"MAE: {mae:.4f}, RMSE: {rmse:.4f}, R2 Score: {r2:.4f}")
+    # Residual analysis plots
+    os.makedirs(plots_dir, exist_ok=True)
+    residuals = y_test - predictions
+
+    plt.figure(figsize=(15, 6))
+    plt.plot(y_test.index, residuals, marker='.', linestyle='None', alpha=0.6)
+    plt.axhline(y=0, color='r', linestyle='--'); plt.title(f'{model_name} - Residuals Over Time')
+    plt.savefig(os.path.join(plots_dir, f'{model_name}_residuals_over_time.png'))
+    plt.close()
+
+    plt.figure(figsize=(10, 6))
+    sns.histplot(residuals, kde=True); plt.title(f'{model_name} - Distribution of Residuals')
+    plt.savefig(os.path.join(plots_dir, f'{model_name}_residuals_histogram.png'))
+    plt.close()
+    
+    logging.info(f"Validation plots for {model_name} saved to {plots_dir}")
 
 if __name__ == "__main__":
-    params = load_params()
-    model_file = 'models/model.pkl'
-    processed_data_directory = 'data/processed'
-    metrics_output_directory = 'metrics'
-    evaluate_model(model_file, processed_data_directory, metrics_output_directory, params)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model-name", help="The name of the model to evaluate from params.yaml")
+    args = parser.parse_args()
+
+    all_params = load_params()
+    model_to_evaluate = next((m for m in all_params['train']['models'] if m['name'] == args.model_name), None)
+
+    if model_to_evaluate:
+        evaluate_model(model_to_evaluate, all_params)
+    else:
+        logging.error(f"Model '{args.model_name}' not found in params.yaml")
+        exit(1)

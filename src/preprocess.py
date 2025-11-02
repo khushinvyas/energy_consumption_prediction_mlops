@@ -1,4 +1,4 @@
-# preprocess.py
+# src/preprocess.py
 import pandas as pd
 import numpy as np
 import os
@@ -55,7 +55,7 @@ def preprocess_data(input_path, output_dir, params):
     actual_features = [f for f in features_to_use if f in df.columns]
     
     X = df[actual_features]
-    y = df[target_column]
+    y = df[[target_column]] 
 
     # Time-series split (chronological)
     test_split_ratio = params['preprocess']['test_split_ratio']

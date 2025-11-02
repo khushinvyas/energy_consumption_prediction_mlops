@@ -7,3 +7,4 @@ flask
 dvc
 gunicorn
 boto3
+lightgbm

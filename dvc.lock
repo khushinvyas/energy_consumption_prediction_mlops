@@ -9,42 +9,30 @@ stages:
       size: 4256472
     - path: src/preprocess.py
       hash: md5
-      md5: c9829a453c4416c41a8b08182b651ecc
-      size: 3295
+      md5: 2d5e7354b6af7c0dd836a2e408466703
+      size: 3302
     params:
       params.yaml:
-        preprocess.random_state: 42
-        preprocess.target_column: Global_active_power
-        preprocess.test_split_ratio: 0.2
+        preprocess:
+          target_column: Global_active_power
+          test_split_ratio: 0.2
         train.features:
-        - hour_of_day
-        - day_of_week
-        - month
-        - year
         - Global_reactive_power
         - Voltage
         - Global_intensity
         - Sub_metering_1
         - Sub_metering_2
         - Sub_metering_3
-        - Sub_metering_4
+        - hour_of_day
+        - day_of_week
+        - month
+        - year
     outs:
-    - path: data/processed/X_test.csv
+    - path: data/processed
       hash: md5
-      md5: 31f54f03208709fc03213305add4c35b
-      size: 802693
-    - path: data/processed/X_train.csv
-      hash: md5
-      md5: bb17cc02d10b3c1f0d20ff2b072d6488
-      size: 3199102
-    - path: data/processed/y_test.csv
-      hash: md5
-      md5: 02372a9c716df4a782bbb4ece6664366
-      size: 249975
-    - path: data/processed/y_train.csv
-      hash: md5
-      md5: 430912096fed0c3ec8a877f46535b381
-      size: 1006246
+      md5: fbc47970798131997c5e76b2907928c8.dir
+      size: 4935101
+      nfiles: 4
   split:
     cmd: python src/data_split.py
     deps:
@@ -304,3 +292,467 @@ stages:
       hash: md5
       md5: b876cee2e251cab100cfa7242ed4e440
       size: 109
+  train@0:
+    cmd: python src/train.py --model-name "XGBoostRegressor"
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: fbc47970798131997c5e76b2907928c8.dir
+      size: 4935101
+      nfiles: 4
+    - path: src/train.py
+      hash: md5
+      md5: efd1a619ac59fbb1efe8a2a5b87cd117
+      size: 4257
+    params:
+      params.yaml:
+        train.features:
+        - Global_reactive_power
+        - Voltage
+        - Global_intensity
+        - Sub_metering_1
+        - Sub_metering_2
+        - Sub_metering_3
+        - hour_of_day
+        - day_of_week
+        - month
+        - year
+        train.models:
+        - name: XGBoostRegressor
+          file_name: xgb_model.pkl
+          params:
+            objective: reg:squarederror
+            n_estimators: 1000
+            learning_rate: 0.05
+            max_depth: 6
+            min_child_weight: 1
+            gamma: 0.1
+            reg_alpha: 0.005
+            reg_lambda: 1
+            subsample: 0.8
+            colsample_bytree: 0.8
+            random_state: 42
+        - name: RandomForestRegressor
+          file_name: rf_model.pkl
+          params:
+            n_estimators: 200
+            max_depth: 15
+            min_samples_split: 5
+            min_samples_leaf: 2
+            max_features: sqrt
+            bootstrap: true
+            oob_score: true
+            random_state: 42
+            n_jobs: -1
+        - name: LightGBMRegressor
+          file_name: lgbm_model.pkl
+          params:
+            boosting_type: gbdt
+            objective: regression_l1
+            n_estimators: 1000
+            learning_rate: 0.05
+            num_leaves: 31
+            max_depth: -1
+            reg_alpha: 0.1
+            reg_lambda: 0.1
+            colsample_bytree: 0.8
+            subsample: 0.8
+            random_state: 42
+            n_jobs: -1
+        validation:
+          run_tcv: true
+          tcv_splits: 5
+          plots_dir: metrics/validation_plots
+    outs:
+    - path: models/xgb_model.pkl
+      hash: md5
+      md5: 1f3fb066cbe1c95d90bc0946cb196aea
+      size: 1003820
+  train@1:
+    cmd: python src/train.py --model-name "RandomForestRegressor"
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: fbc47970798131997c5e76b2907928c8.dir
+      size: 4935101
+      nfiles: 4
+    - path: src/train.py
+      hash: md5
+      md5: efd1a619ac59fbb1efe8a2a5b87cd117
+      size: 4257
+    params:
+      params.yaml:
+        train.features:
+        - Global_reactive_power
+        - Voltage
+        - Global_intensity
+        - Sub_metering_1
+        - Sub_metering_2
+        - Sub_metering_3
+        - hour_of_day
+        - day_of_week
+        - month
+        - year
+        train.models:
+        - name: XGBoostRegressor
+          file_name: xgb_model.pkl
+          params:
+            objective: reg:squarederror
+            n_estimators: 1000
+            learning_rate: 0.05
+            max_depth: 6
+            min_child_weight: 1
+            gamma: 0.1
+            reg_alpha: 0.005
+            reg_lambda: 1
+            subsample: 0.8
+            colsample_bytree: 0.8
+            random_state: 42
+        - name: RandomForestRegressor
+          file_name: rf_model.pkl
+          params:
+            n_estimators: 200
+            max_depth: 15
+            min_samples_split: 5
+            min_samples_leaf: 2
+            max_features: sqrt
+            bootstrap: true
+            oob_score: true
+            random_state: 42
+            n_jobs: -1
+        - name: LightGBMRegressor
+          file_name: lgbm_model.pkl
+          params:
+            boosting_type: gbdt
+            objective: regression_l1
+            n_estimators: 1000
+            learning_rate: 0.05
+            num_leaves: 31
+            max_depth: -1
+            reg_alpha: 0.1
+            reg_lambda: 0.1
+            colsample_bytree: 0.8
+            subsample: 0.8
+            random_state: 42
+            n_jobs: -1
+        validation:
+          run_tcv: true
+          tcv_splits: 5
+          plots_dir: metrics/validation_plots
+    outs:
+    - path: models/rf_model.pkl
+      hash: md5
+      md5: cf2559ac5f728986d80d54c125b5e920
+      size: 89605158
+  train@2:
+    cmd: python src/train.py --model-name "LightGBMRegressor"
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: fbc47970798131997c5e76b2907928c8.dir
+      size: 4935101
+      nfiles: 4
+    - path: src/train.py
+      hash: md5
+      md5: efd1a619ac59fbb1efe8a2a5b87cd117
+      size: 4257
+    params:
+      params.yaml:
+        train.features:
+        - Global_reactive_power
+        - Voltage
+        - Global_intensity
+        - Sub_metering_1
+        - Sub_metering_2
+        - Sub_metering_3
+        - hour_of_day
+        - day_of_week
+        - month
+        - year
+        train.models:
+        - name: XGBoostRegressor
+          file_name: xgb_model.pkl
+          params:
+            objective: reg:squarederror
+            n_estimators: 1000
+            learning_rate: 0.05
+            max_depth: 6
+            min_child_weight: 1
+            gamma: 0.1
+            reg_alpha: 0.005
+            reg_lambda: 1
+            subsample: 0.8
+            colsample_bytree: 0.8
+            random_state: 42
+        - name: RandomForestRegressor
+          file_name: rf_model.pkl
+          params:
+            n_estimators: 200
+            max_depth: 15
+            min_samples_split: 5
+            min_samples_leaf: 2
+            max_features: sqrt
+            bootstrap: true
+            oob_score: true
+            random_state: 42
+            n_jobs: -1
+        - name: LightGBMRegressor
+          file_name: lgbm_model.pkl
+          params:
+            boosting_type: gbdt
+            objective: regression_l1
+            n_estimators: 1000
+            learning_rate: 0.05
+            num_leaves: 31
+            max_depth: -1
+            reg_alpha: 0.1
+            reg_lambda: 0.1
+            colsample_bytree: 0.8
+            subsample: 0.8
+            random_state: 42
+            n_jobs: -1
+        validation:
+          run_tcv: true
+          tcv_splits: 5
+          plots_dir: metrics/validation_plots
+    outs:
+    - path: models/lgbm_model.pkl
+      hash: md5
+      md5: ad92eac4619bd03a7146b0a9b2f54780
+      size: 2909006
+  evaluate@0:
+    cmd: python src/evaluate.py --model-name "XGBoostRegressor"
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: fbc47970798131997c5e76b2907928c8.dir
+      size: 4935101
+      nfiles: 4
+    - path: models/xgb_model.pkl
+      hash: md5
+      md5: 1f3fb066cbe1c95d90bc0946cb196aea
+      size: 1003820
+    - path: src/evaluate.py
+      hash: md5
+      md5: d289f55c889f8afca1da7015c9688caa
+      size: 3212
+    params:
+      params.yaml:
+        preprocess.target_column: Global_active_power
+        train.models:
+        - name: XGBoostRegressor
+          file_name: xgb_model.pkl
+          params:
+            objective: reg:squarederror
+            n_estimators: 1000
+            learning_rate: 0.05
+            max_depth: 6
+            min_child_weight: 1
+            gamma: 0.1
+            reg_alpha: 0.005
+            reg_lambda: 1
+            subsample: 0.8
+            colsample_bytree: 0.8
+            random_state: 42
+        - name: RandomForestRegressor
+          file_name: rf_model.pkl
+          params:
+            n_estimators: 200
+            max_depth: 15
+            min_samples_split: 5
+            min_samples_leaf: 2
+            max_features: sqrt
+            bootstrap: true
+            oob_score: true
+            random_state: 42
+            n_jobs: -1
+        - name: LightGBMRegressor
+          file_name: lgbm_model.pkl
+          params:
+            boosting_type: gbdt
+            objective: regression_l1
+            n_estimators: 1000
+            learning_rate: 0.05
+            num_leaves: 31
+            max_depth: -1
+            reg_alpha: 0.1
+            reg_lambda: 0.1
+            colsample_bytree: 0.8
+            subsample: 0.8
+            random_state: 42
+            n_jobs: -1
+        validation:
+          run_tcv: true
+          tcv_splits: 5
+          plots_dir: metrics/validation_plots
+    outs:
+    - path: metrics/XGBoostRegressor_metrics.json
+      hash: md5
+      md5: c7dee30601ad6926c8e9347e318a1409
+      size: 109
+    - path: metrics/validation_plots/XGBoostRegressor_residuals_histogram.png
+      hash: md5
+      md5: 96d77beb1fed4f901c2ae2bd75277f91
+      size: 31112
+    - path: metrics/validation_plots/XGBoostRegressor_residuals_over_time.png
+      hash: md5
+      md5: 8eed108725eb8b48dc61e96c71b6b2e2
+      size: 123219
+  evaluate@1:
+    cmd: python src/evaluate.py --model-name "RandomForestRegressor"
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: fbc47970798131997c5e76b2907928c8.dir
+      size: 4935101
+      nfiles: 4
+    - path: models/rf_model.pkl
+      hash: md5
+      md5: cf2559ac5f728986d80d54c125b5e920
+      size: 89605158
+    - path: src/evaluate.py
+      hash: md5
+      md5: d289f55c889f8afca1da7015c9688caa
+      size: 3212
+    params:
+      params.yaml:
+        preprocess.target_column: Global_active_power
+        train.models:
+        - name: XGBoostRegressor
+          file_name: xgb_model.pkl
+          params:
+            objective: reg:squarederror
+            n_estimators: 1000
+            learning_rate: 0.05
+            max_depth: 6
+            min_child_weight: 1
+            gamma: 0.1
+            reg_alpha: 0.005
+            reg_lambda: 1
+            subsample: 0.8
+            colsample_bytree: 0.8
+            random_state: 42
+        - name: RandomForestRegressor
+          file_name: rf_model.pkl
+          params:
+            n_estimators: 200
+            max_depth: 15
+            min_samples_split: 5
+            min_samples_leaf: 2
+            max_features: sqrt
+            bootstrap: true
+            oob_score: true
+            random_state: 42
+            n_jobs: -1
+        - name: LightGBMRegressor
+          file_name: lgbm_model.pkl
+          params:
+            boosting_type: gbdt
+            objective: regression_l1
+            n_estimators: 1000
+            learning_rate: 0.05
+            num_leaves: 31
+            max_depth: -1
+            reg_alpha: 0.1
+            reg_lambda: 0.1
+            colsample_bytree: 0.8
+            subsample: 0.8
+            random_state: 42
+            n_jobs: -1
+        validation:
+          run_tcv: true
+          tcv_splits: 5
+          plots_dir: metrics/validation_plots
+    outs:
+    - path: metrics/RandomForestRegressor_metrics.json
+      hash: md5
+      md5: 8f1dcddc8d2ffb88ff45ab0901e53b87
+      size: 107
+    - path: 
+        metrics/validation_plots/RandomForestRegressor_residuals_histogram.png
+      hash: md5
+      md5: a57006c21569ba5d8fe0e6af44e75bb3
+      size: 31609
+    - path: 
+        metrics/validation_plots/RandomForestRegressor_residuals_over_time.png
+      hash: md5
+      md5: dac4b743e9ff6ba4b6a4a3c3f9200485
+      size: 121761
+  evaluate@2:
+    cmd: python src/evaluate.py --model-name "LightGBMRegressor"
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: fbc47970798131997c5e76b2907928c8.dir
+      size: 4935101
+      nfiles: 4
+    - path: models/lgbm_model.pkl
+      hash: md5
+      md5: ad92eac4619bd03a7146b0a9b2f54780
+      size: 2909006
+    - path: src/evaluate.py
+      hash: md5
+      md5: d289f55c889f8afca1da7015c9688caa
+      size: 3212
+    params:
+      params.yaml:
+        preprocess.target_column: Global_active_power
+        train.models:
+        - name: XGBoostRegressor
+          file_name: xgb_model.pkl
+          params:
+            objective: reg:squarederror
+            n_estimators: 1000
+            learning_rate: 0.05
+            max_depth: 6
+            min_child_weight: 1
+            gamma: 0.1
+            reg_alpha: 0.005
+            reg_lambda: 1
+            subsample: 0.8
+            colsample_bytree: 0.8
+            random_state: 42
+        - name: RandomForestRegressor
+          file_name: rf_model.pkl
+          params:
+            n_estimators: 200
+            max_depth: 15
+            min_samples_split: 5
+            min_samples_leaf: 2
+            max_features: sqrt
+            bootstrap: true
+            oob_score: true
+            random_state: 42
+            n_jobs: -1
+        - name: LightGBMRegressor
+          file_name: lgbm_model.pkl
+          params:
+            boosting_type: gbdt
+            objective: regression_l1
+            n_estimators: 1000
+            learning_rate: 0.05
+            num_leaves: 31
+            max_depth: -1
+            reg_alpha: 0.1
+            reg_lambda: 0.1
+            colsample_bytree: 0.8
+            subsample: 0.8
+            random_state: 42
+            n_jobs: -1
+        validation:
+          run_tcv: true
+          tcv_splits: 5
+          plots_dir: metrics/validation_plots
+    outs:
+    - path: metrics/LightGBMRegressor_metrics.json
+      hash: md5
+      md5: 4873f14b81971eb7147aa3181c574c7a
+      size: 108
+    - path: metrics/validation_plots/LightGBMRegressor_residuals_histogram.png
+      hash: md5
+      md5: 70e7e78e5f8e44a84df86a2c23195203
+      size: 28899
+    - path: metrics/validation_plots/LightGBMRegressor_residuals_over_time.png
+      hash: md5
+      md5: 4870283cb92e0fa4ef963aeba1702394
+      size: 97907

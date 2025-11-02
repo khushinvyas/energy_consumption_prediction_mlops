@@ -1,55 +1,48 @@
 # dvc.yaml
+
 stages:
   preprocess:
     cmd: python src/preprocess.py
     deps:
       - data/raw/household_power_consumption_hourly.csv
       - src/preprocess.py
-    outs:
-      - data/processed/X_train.csv
-      - data/processed/X_test.csv
-      - data/processed/y_train.csv
-      - data/processed/y_test.csv
     params:
-      - preprocess.test_split_ratio
-      - preprocess.random_state
-      - preprocess.target_column
+      - preprocess
       - train.features
+    outs:
+      - data/processed
 
   train:
-    cmd: python src/train.py
-    deps:
-      - data/processed/X_train.csv
-      - data/processed/y_train.csv
-      - src/train.py
-    outs:
-      - models/model.pkl
-    params:
-      - train.model.name
-      - train.model.params.n_estimators
-      - train.model.params.max_depth
-      - train.model.params.random_state
-      - train.model.params.min_samples_split
-      - train.model.params.min_samples_leaf
-      - train.model.params.max_features
-      # XGBoost specific parameters, DVC will ignore if not used by model.name
-      - train.model.params.learning_rate
-      - train.model.params.subsample
-      - train.model.params.colsample_bytree
-      - train.model.params.reg_alpha
-      - train.model.params.gamma
-      - train.model.params.min_child_weight
-      - preprocess.target_column # For consistency check in train.py
+    foreach: ${train.models}
+    do:
+      cmd: python src/train.py --model-name "${item.name}"
+      deps:
+        - data/processed
+        - src/train.py
+      params:
+        - train.features
+        - validation
+        - train.models # Depends on the whole list
+      outs:
+        - models/${item.file_name}
 
   evaluate:
-    cmd: python src/evaluate.py
-    deps:
-      - models/model.pkl
-      - data/processed/X_test.csv
-      - data/processed/y_test.csv
-      - src/evaluate.py
-    metrics:
-      - metrics/metrics.json:
-          cache: false # Metrics are lightweight, no need to dvc cache them
-    params:
-      - preprocess.target_column # For consistency check in evaluate.py
+    foreach: ${train.models}
+    do:
+      cmd: python src/evaluate.py --model-name "${item.name}"
+      deps:
+        - models/${item.file_name}
+        - data/processed
+        - src/evaluate.py
+      params:
+        - validation
+        - preprocess.target_column
+        - train.models
+      metrics:
+        - metrics/${item.name}_metrics.json:
+            cache: false
+      plots:
+        - metrics/validation_plots/${item.name}_residuals_over_time.png:
+            cache: false
+        - metrics/validation_plots/${item.name}_residuals_histogram.png:
+            cache: false

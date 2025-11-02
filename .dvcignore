@@ -2,6 +2,5 @@
 .gitignore
 .dvc
 .dvcignore
-dvc.yaml
+
 dvc.lock
-data/
